@@ -1,3 +1,4 @@
+#pragma once
 #ifndef CHERNOBY_CORE_ROD_H
 #define CHERNOBY_CORE_ROD_H
 

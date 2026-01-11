@@ -1,3 +1,8 @@
+//
+// Created by niaei on 9.01.2026.
+//
+
+#pragma once
 #ifndef CHERNOBY_CORE_PARTICLE_H
 #define CHERNOBY_CORE_PARTICLE_H
 
@@ -29,7 +34,12 @@ public:
     float attraction_strength = 0.f;
     float absorption_probability = 0.1f;
     float decay_probability = 0.f;
+
+    float received_energy = 0.f;
     bool unstable = false;
+
+    float softening = 0.01f;
+    float restitution = 1.f;
 
     // --- Construction ---
     explicit Particle(
@@ -106,6 +116,16 @@ public:
         return *this;
     }
 
+    Particle& set_softening(bool v) noexcept {
+        softening = v;
+        return *this;
+    }
+
+    Particle& set_restitution(bool v) noexcept {
+        restitution = v;
+        return *this;
+    }
+
     // ============================================================
     // Derived quantities
     // ============================================================
@@ -132,6 +152,10 @@ public:
 
     void age(float dt) noexcept {
         time_lived += dt;
+    }
+
+    void receive_energy(float v) noexcept {
+        received_energy += v;
     }
 
     bool is_dead() const noexcept {
@@ -169,18 +193,16 @@ public:
         if (dist <= 0.f)
             return;
 
-        constexpr float SOFTENING = 0.01f;
-
         float accel_mag =
             attraction_strength * static_cast<float>(other.mass) /
-            (dist * dist + SOFTENING);
+            (dist * dist + softening);
 
         acceleration = acceleration.add(
             dir.unit().scale(accel_mag)
         );
     }
 
-    void bounce(Particle& other, float restitution = 1.f) noexcept {
+    void bounce(Particle& other) noexcept {
         if (!is_collided(other))
             return;
 
@@ -198,7 +220,7 @@ public:
         float inv_m2 = 1.f / static_cast<float>(other.mass);
 
         float j =
-            -(1.f + restitution) * vel_n /
+            -(1.f + (restitution + other.restitution)/2) * vel_n /
             (inv_m1 + inv_m2);
 
         V2D impulse = normal.scale(j);
@@ -297,11 +319,11 @@ public:
     // Factory helpers
     // ============================================================
 
-    static Particle random() {
+    static Particle random()  noexcept{
         return Particle(V2D::random());
     }
 
-    static Particle from_values(float x, float y) {
+    static Particle from_values(float x, float y)  noexcept{
         return Particle(V2D(x, y));
     }
 };

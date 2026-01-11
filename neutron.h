@@ -2,6 +2,7 @@
 // Created by niaei on 9.01.2026.
 //
 
+#pragma once
 #ifndef CHERNOBY_CORE_ATOM_H
 #define CHERNOBY_CORE_ATOM_H
 
@@ -25,6 +26,12 @@ public:
 
     float energy() const noexcept {
         return ENERGY_MULTIPLIER * mass * velocity.dot(velocity);
+    }
+
+    std::vector<FissionSplit> bohr_wheeler(std::optional<float> energy_input = std::nullopt) const {
+        return {
+            FissionSplit{ mass, 0, 0, 1.0f }
+        };
     }
 
 };
