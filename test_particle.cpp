@@ -42,7 +42,7 @@ int main() {
             Particle::ENERGY_MULTIPLIER *
             std::pow(9.f, Particle::ENERGY_POWER);
 
-        assert(feq(p.energy(), expected_energy));
+        assert(feq(p.mass_energy(), expected_energy));
         assert(feq(p.stiffness(), 1.f / expected_energy));
     }
 

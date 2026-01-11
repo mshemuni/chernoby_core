@@ -2,6 +2,7 @@
 #ifndef CHERNOBYL_CORE_PARTICLE_H
 #define CHERNOBYL_CORE_PARTICLE_H
 
+#include "utils.h"
 #include "v2d.h"
 #include <cmath>
 #include <random>
@@ -12,7 +13,6 @@
 
 class Particle {
 public:
-    // --- State ---
     V2D position;
     V2D velocity;
     V2D acceleration;
@@ -37,6 +37,8 @@ public:
     float restitution = 0.f;
     float resistance = 0.f;
     float maximum_velocity = std::numeric_limits<float>::max();
+
+    float fusion_probability = 0.f;
 
     // --- Construction ---
     explicit Particle(
@@ -95,16 +97,12 @@ public:
     }
 
     Particle& set_absorption_probability(float v) noexcept {
-        if (v < 0.f) v = 0.f;
-        if (v > 1.f) v = 1.f;
-        absorption_probability = v;
+        absorption_probability = Utils::clamp(v, 0.0f, 1.0f);
         return *this;
     }
 
     Particle& set_decay_probability(float v) noexcept {
-        if (v < 0.f) v = 0.f;
-        if (v > 1.f) v = 1.f;
-        decay_probability = v;
+        decay_probability = Utils::clamp(v, 0.0f, 1.0f);
         return *this;
     }
 
@@ -124,16 +122,17 @@ public:
     }
 
     Particle& set_resistance(float v) noexcept {
-        if (v < 0.f) v = 0.f;
-        if (v > 1.f) v = 1.f;
-        resistance = v;
+        resistance =  Utils::clamp(v, 0.0f, 1.0f);
         return *this;
     }
 
     Particle& set_maximum_velocity(float v) noexcept {
-        if (v < 0.f) v = 0.f;
-        if (v > 1.f) v = 1.f;
-        maximum_velocity = v;
+        maximum_velocity = Utils::clamp(v, 0.0f, 1.0f);
+        return *this;
+    }
+
+    Particle& set_fusion_probability(float v) noexcept {
+        fusion_probability = Utils::clamp(v, 0.0f, 1.0f);
         return *this;
     }
 
@@ -142,26 +141,26 @@ public:
     // ============================================================
 
     float radius() const noexcept {
-        return std::sqrt(
-            static_cast<float>(mass) /
-            (static_cast<float>(M_PI) * sigma)
-        );
+        return Utils::mass_to_radius(mass, sigma);
     }
 
-    float energy() const noexcept {
-        return ENERGY_MULTIPLIER *
-               std::pow(static_cast<float>(mass), ENERGY_POWER);
+    float kinetic_energy() const noexcept {
+        return ENERGY_MULTIPLIER * Utils::kinetic_energy(mass, velocity);
+    }
+
+    float mass_energy() const noexcept {
+        return ENERGY_MULTIPLIER * Utils::mass_energy(mass, ENERGY_POWER);
     }
 
     float stiffness() const noexcept {
-        return 1.f / energy();
+        return 1.f / mass_energy();
     }
 
     // ============================================================
     // Lifecycle
     // ============================================================
 
-    void age(float dt) noexcept {
+    void age(float dt = 1.0f/60.0f) noexcept {
         time_lived += dt;
     }
 
@@ -182,7 +181,8 @@ public:
     // Motion / integration
     // ============================================================
 
-    void integrate(float dt) noexcept {
+    void integrate(float dt = 1.0f/60.0f) noexcept {
+        apply_drag();
         velocity = velocity.add(acceleration.scale(dt));
         clamp_velocity();
         position = position.add(velocity.scale(dt));
@@ -205,7 +205,7 @@ public:
 
     bool is_collided(const Particle& other) const noexcept {
         float d = position.distance(other.position);
-        return d <= (radius() + other.radius());
+        return d <= radius() + other.radius();
     }
 
     void apply_force(const V2D& force) noexcept {
@@ -217,19 +217,19 @@ public:
     }
 
     void attract_to(const Particle& other) noexcept {
-        V2D dir = other.position.subtract(position);
-        float dist = dir.magnitude();
+        const V2D direction = other.position.subtract(position);
+        const float distance = direction.magnitude();
 
-        if (dist <= 0.f)
+        if (distance <= 0.f)
             return;
 
-        float force_mag =
+        const float force_mag =
             attraction_strength *
             static_cast<float>(mass) *
             static_cast<float>(other.mass) /
-            (dist * dist + attraction_softening);
+            (distance * distance + attraction_softening);
 
-        apply_force(dir.unit().scale(force_mag));
+        apply_force(direction.unit().scale(force_mag));
     }
 
     void bounce(Particle& other) noexcept {
@@ -239,24 +239,116 @@ public:
         if (mass <= 0 || other.mass <= 0)
             return;
 
-        V2D normal = position.subtract(other.position).unit();
-        V2D rel_vel = velocity.subtract(other.velocity);
+        const V2D normal = position.subtract(other.position).unit();
+        const V2D rel_vel = velocity.subtract(other.velocity);
 
-        float vel_n = rel_vel.dot(normal);
+        const float vel_n = rel_vel.dot(normal);
         if (vel_n > 0.f)
             return;
 
-        float inv_m1 = 1.f / static_cast<float>(mass);
-        float inv_m2 = 1.f / static_cast<float>(other.mass);
+        const float inv_m1 = 1.f / static_cast<float>(mass);
+        const float inv_m2 = 1.f / static_cast<float>(other.mass);
 
         float j =
-            -(1.f + (restitution + other.restitution)/2) * vel_n /
+            -(1.f + (restitution + other.restitution) * 0.5f) * vel_n /
             (inv_m1 + inv_m2);
 
-        V2D impulse = normal.scale(j);
+        const V2D impulse = normal.scale(j);
 
         velocity = velocity.add(impulse.scale(inv_m1));
         other.velocity = other.velocity.subtract(impulse.scale(inv_m2));
+    }
+
+    bool should_absorb(const float dt = 1.0f/60.0f) const noexcept {
+        return Utils::time_scaled_bernoulli(dt, absorption_probability);
+    }
+
+    bool should_decay(const float dt = 1.0f/60.0f) const noexcept {
+        return Utils::time_scaled_bernoulli(dt, decay_probability);
+    }
+
+    bool can_fuse(const Particle& other) const noexcept
+    {
+        if (!is_collided(other))
+            return false;
+
+        const float m1 = static_cast<float>(mass);
+        const float m2 = static_cast<float>(other.mass);
+
+        if (m1 <= 0.f || m2 <= 0.f)
+            return false;
+
+        const V2D rel_vel = velocity.subtract(other.velocity);
+
+        V2D normal = position.subtract(other.position);
+        float dist = normal.magnitude();
+
+        if (dist < 1e-6f)
+            return false;
+
+        normal = normal.unit();
+
+        const float v_n = rel_vel.dot(normal);
+
+        if (v_n >= 0.f)
+            return false;
+
+        const float reduced_mass = (m1 * m2) / (m1 + m2);
+
+        const float kinetic_energy =  random().set_mass(reduced_mass).set_velocity(rel_vel).kinetic_energy();
+
+        const float available_energy = mass_energy() + other.mass_energy() + kinetic_energy;
+
+        const float fused_mass_energy = random().set_mass(mass + other.mass). mass_energy();
+
+        return available_energy >= fused_mass_energy;
+    }
+
+    bool should_fuse(const Particle& other, float dt = 1.0f / 60.0f) const noexcept
+    {
+        if (!can_fuse(other))
+            return false;
+
+        return Utils::time_scaled_bernoulli(
+            dt,
+            (fusion_probability + other.absorption_probability) * 0.5f
+            );
+    }
+
+
+    Particle fuse_with(const Particle& other) const
+    {
+        if (!can_fuse(other)) {
+            throw std::logic_error("Particle::fuse_with called when fusion is not possible");
+        }
+
+        const float m1 = static_cast<float>(mass);
+        const float m2 = static_cast<float>(other.mass);
+        const float total_mass = m1 + m2;
+
+        const V2D fused_position =
+            position.scale(m1)
+            .add(other.position.scale(m2))
+            .scale(1.f / total_mass);
+
+        const V2D fused_velocity =
+            velocity.scale(m1)
+            .add(other.velocity.scale(m2))
+            .scale(1.f / total_mass);
+
+        Particle fused(fused_position);
+        fused
+            .set_velocity(fused_velocity)
+            .set_mass(static_cast<int>(total_mass))
+            .set_sigma((sigma + other.sigma) * 0.5f)
+            .set_restitution((restitution + other.restitution) * 0.5f)
+            .set_resistance((resistance + other.resistance) * 0.5f)
+            .set_attraction_strength((attraction_strength + other.attraction_strength) * 0.5f)
+            .set_fusion_probability((fusion_probability + other.fusion_probability) * 0.5f)
+            .set_unstable(unstable && other.unstable);
+
+
+        return fused;
     }
 
     // ============================================================
@@ -275,7 +367,7 @@ public:
 
         float deltaA0 = 0.18f * std::pow(mass, 2.f / 3.f);
         if (energy_input.has_value()) {
-            float symmetry_factor =
+            const float symmetry_factor =
                 std::max(0.6f, 1.f - energy_input.value() / 100.f);
             deltaA0 *= symmetry_factor;
         }
@@ -284,8 +376,8 @@ public:
         if (energy_input.has_value())
             base_nu += 0.02f * energy_input.value();
 
-        float max_delta = deltaA0 * 2.f;
-        float step = std::max(1.f, deltaA0 / 3.f);
+        const float max_delta = deltaA0 * 2.f;
+        const float step = std::max(1.f, deltaA0 / 3.f);
 
         std::vector<FissionSplit> results;
         std::vector<float> weights;
@@ -325,7 +417,7 @@ public:
         return normalized;
     }
 
-    FissionSplit split(std::optional<float> energy_input = std::nullopt) const {
+    FissionSplit bohr_wheeler_split(std::optional<float> energy_input = std::nullopt) const {
         auto splits = bohr_wheeler(energy_input);
 
         static std::random_device rd;
@@ -343,7 +435,6 @@ public:
 
         return splits.back();
     }
-
 
     // ============================================================
     // Factory helpers

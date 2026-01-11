@@ -21,13 +21,21 @@ public:
     }
 
     float energy() const noexcept {
-        return ENERGY_MULTIPLIER * mass * velocity.dot(velocity);
+        return kinetic_energy();
     }
 
     std::vector<FissionSplit> bohr_wheeler(std::optional<float> energy_input = std::nullopt) const {
         return {
             FissionSplit{ mass, 0, 0, 1.0f }
         };
+    }
+
+    bool should_absorb(float dt = 1.0f/60.0f) const noexcept {
+        return false;
+    }
+
+    bool should_decay(float dt = 1.0f/60.0f) const noexcept {
+        return false;
     }
 
 };
