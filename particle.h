@@ -1,10 +1,6 @@
-//
-// Created by niaei on 9.01.2026.
-//
-
 #pragma once
-#ifndef CHERNOBY_CORE_PARTICLE_H
-#define CHERNOBY_CORE_PARTICLE_H
+#ifndef CHERNOBYL_CORE_PARTICLE_H
+#define CHERNOBYL_CORE_PARTICLE_H
 
 #include "v2d.h"
 #include <cmath>
@@ -24,7 +20,6 @@ public:
     static constexpr float ENERGY_POWER = 0.7f;
     static constexpr float ENERGY_MULTIPLIER = 10.f;
 
-    // --- Physical / lifecycle parameters ---
     float time_lived = 0.f;
     float time_to_live = 1.f;
 
@@ -38,8 +33,10 @@ public:
     float received_energy = 0.f;
     bool unstable = false;
 
-    float softening = 0.01f;
-    float restitution = 1.f;
+    float attraction_softening = 0.01f;
+    float restitution = 0.f;
+    float resistance = 0.f;
+    float maximum_velocity = std::numeric_limits<float>::max();
 
     // --- Construction ---
     explicit Particle(
@@ -116,13 +113,27 @@ public:
         return *this;
     }
 
-    Particle& set_softening(bool v) noexcept {
-        softening = v;
+    Particle& set_attraction_softening(bool v) noexcept {
+        attraction_softening = v;
         return *this;
     }
 
     Particle& set_restitution(bool v) noexcept {
         restitution = v;
+        return *this;
+    }
+
+    Particle& set_resistance(float v) noexcept {
+        if (v < 0.f) v = 0.f;
+        if (v > 1.f) v = 1.f;
+        resistance = v;
+        return *this;
+    }
+
+    Particle& set_maximum_velocity(float v) noexcept {
+        if (v < 0.f) v = 0.f;
+        if (v > 1.f) v = 1.f;
+        maximum_velocity = v;
         return *this;
     }
 
@@ -173,7 +184,18 @@ public:
 
     void integrate(float dt) noexcept {
         velocity = velocity.add(acceleration.scale(dt));
+        clamp_velocity();
         position = position.add(velocity.scale(dt));
+        reset_forces();
+    }
+
+    void clamp_velocity() noexcept {
+        float m = velocity.magnitude();
+        if (m > maximum_velocity)
+            velocity = velocity.unit().scale(maximum_velocity);
+    }
+
+    void reset_forces() noexcept {
         acceleration = V2D();
     }
 
@@ -186,6 +208,14 @@ public:
         return d <= (radius() + other.radius());
     }
 
+    void apply_force(const V2D& force) noexcept {
+        acceleration = acceleration.add(force.scale(1.f / mass));
+    }
+
+    void apply_drag() noexcept {
+        velocity = velocity.scale(1.f - resistance);
+    }
+
     void attract_to(const Particle& other) noexcept {
         V2D dir = other.position.subtract(position);
         float dist = dir.magnitude();
@@ -193,13 +223,13 @@ public:
         if (dist <= 0.f)
             return;
 
-        float accel_mag =
-            attraction_strength * static_cast<float>(other.mass) /
-            (dist * dist + softening);
+        float force_mag =
+            attraction_strength *
+            static_cast<float>(mass) *
+            static_cast<float>(other.mass) /
+            (dist * dist + attraction_softening);
 
-        acceleration = acceleration.add(
-            dir.unit().scale(accel_mag)
-        );
+        apply_force(dir.unit().scale(force_mag));
     }
 
     void bounce(Particle& other) noexcept {
@@ -328,4 +358,4 @@ public:
     }
 };
 
-#endif // CHERNOBY_CORE_PARTICLE_H
+#endif // CHERNOBYL_CORE_PARTICLE_H

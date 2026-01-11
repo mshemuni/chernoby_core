@@ -1,10 +1,6 @@
-//
-// Created by niaei on 9.01.2026.
-//
-
 #pragma once
-#ifndef CHERNOBY_CORE_ATOM_H
-#define CHERNOBY_CORE_ATOM_H
+#ifndef CHERNOBYL_CORE_ATOM_H
+#define CHERNOBYL_CORE_ATOM_H
 
 #include "particle.h"
 
@@ -22,4 +18,4 @@ public:
     }
 };
 
-#endif // CHERNOBY_CORE_ATOM_H
+#endif // CHERNOBYL_CORE_ATOM_H

@@ -1,7 +1,3 @@
-//
-// Created by niaei on 10.01.2026
-//
-
 #include "particle.h"
 #include <cassert>
 #include <cmath>

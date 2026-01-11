@@ -1,6 +1,6 @@
 #pragma once
-#ifndef CHERNOBY_CORE_ROD_H
-#define CHERNOBY_CORE_ROD_H
+#ifndef CHERNOBYL_CORE_ROD_H
+#define CHERNOBYL_CORE_ROD_H
 
 #include "v2d.h"
 #include "particle.h"
@@ -65,4 +65,4 @@ public:
 
 };
 
-#endif // CHERNOBY_CORE_ROD_H
+#endif // CHERNOBYL_CORE_ROD_H

@@ -1,10 +1,6 @@
-//
-// Created by niaei on 9.01.2026.
-//
-
 #pragma once
-#ifndef CHERNOBY_CORE_V2D_H
-#define CHERNOBY_CORE_V2D_H
+#ifndef CHERNOBYL_CORE_V2D_H
+#define CHERNOBYL_CORE_V2D_H
 
 #include <algorithm>
 #include <cmath>
@@ -105,6 +101,10 @@ public:
             .add(other);
     }
 
+    V2D whole() const noexcept {
+        return V2D(std::trunc(x), std::trunc(y));
+    }
+
     std::tuple<float, float> as_tuple(bool whole = false) const noexcept {
         if (whole)
             return { static_cast<int>(x), static_cast<int>(y) };
@@ -127,7 +127,6 @@ public:
         return from_polar(1.f, angle);
     }
 
-
 };
 
-#endif //CHERNOBY_CORE_V2D_H
+#endif //CHERNOBYL_CORE_V2D_H

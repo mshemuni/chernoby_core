@@ -1,10 +1,6 @@
-//
-// Created by niaei on 11.01.2026.
-//
-
 #pragma once
-#ifndef CHERNOBY_CORE_MODERATOR_H
-#define CHERNOBY_CORE_MODERATOR_H
+#ifndef CHERNOBYL_CORE_MODERATOR_H
+#define CHERNOBYL_CORE_MODERATOR_H
 
 #include "particle.h"
 
@@ -16,4 +12,4 @@ public:
         };
     }
 };
-#endif //CHERNOBY_CORE_MODERATOR_H
+#endif //CHERNOBYL_CORE_MODERATOR_H
