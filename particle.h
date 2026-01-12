@@ -1,50 +1,55 @@
 #pragma once
-#ifndef CHERNOBYL_CORE_PARTICLE_H
-#define CHERNOBYL_CORE_PARTICLE_H
 
-#include "utils.h"
-#include "v2d.h"
 #include <cmath>
 #include <random>
-#include <optional>
 #include <vector>
 #include <tuple>
 #include <algorithm>
+#include <limits>
+
+#include "utils.h"
+#include "v2d.h"
 
 class Particle {
 public:
+
     V2D position;
     V2D velocity;
     V2D acceleration;
 
+    // Energy Calculation
     static constexpr float ENERGY_POWER = 0.7f;
     static constexpr float ENERGY_MULTIPLIER = 10.f;
 
+    // Timing
     float time_lived = 0.f;
     float time_to_live = 1.f;
 
+    // Mass and Radius
     int mass = 1;
     float sigma = 1.f;
 
-    float attraction_strength = 0.f;
+    // Nuclear Operations
     float absorption_probability = 0.1f;
     float decay_probability = 0.f;
-
+    float fusion_probability = 0.f;
     float received_energy = 0.f;
     bool unstable = false;
 
-    float attraction_softening = 0.01f;
+    // Classical Physics
+    float attraction_strength = 0.f;
+    float force_softening = 0.01f;
     float restitution = 0.f;
     float resistance = 0.f;
     float maximum_velocity = std::numeric_limits<float>::max();
 
-    float fusion_probability = 0.f;
-
     // --- Construction ---
+    virtual ~Particle() = default;
+
     explicit Particle(
         const V2D& position,
-        V2D velocity = V2D::random(),
-        V2D acceleration = V2D()
+        const V2D velocity = V2D::random_vector(),
+        const V2D acceleration = V2D()
     ) noexcept
         : position(position),
           velocity(velocity),
@@ -55,84 +60,83 @@ public:
     // Setters (fluent, validated)
     // ============================================================
 
-    Particle& set_position(const V2D& p) noexcept {
-        position = p;
+    virtual Particle& set_position(const V2D& _position) noexcept {
+        position = _position;
         return *this;
     }
 
-    Particle& set_velocity(const V2D& v) noexcept {
-        velocity = v;
+    virtual Particle& set_velocity(const V2D& _velocity) noexcept {
+        velocity = _velocity;
         return *this;
     }
 
-    Particle& set_acceleration(const V2D& a) noexcept {
-        acceleration = a;
+    virtual Particle& set_acceleration(const V2D& _acceleration) noexcept {
+        acceleration = _acceleration;
         return *this;
     }
 
-    Particle& set_time_lived(float v) noexcept {
-        time_lived = (v < 0.f) ? 0.f : v;
+    virtual Particle& set_time_lived(const float value) noexcept {
+        time_lived = (value < 0.f) ? 0.f : value;
         return *this;
     }
 
-    Particle& set_time_to_live(float v) noexcept {
-        if (v > 0.f) time_to_live = v;
+    virtual Particle& set_time_to_live(const float value) noexcept {
+        if (value > 0.f) time_to_live = value;
         return *this;
     }
 
-    Particle& set_mass(int v) noexcept {
-        if (v > 0) mass = v;
+    virtual Particle& set_mass(const int value) noexcept {
+        if (value > 0) mass = value;
         return *this;
     }
 
-
-    Particle& set_sigma(float v) noexcept {
-        if (v > 0.f) sigma = v;
+    virtual Particle& set_sigma(const float value) noexcept {
+        if (value > 0.f) sigma = value;
         return *this;
     }
 
-    Particle& set_attraction_strength(float v) noexcept {
-        if (v >= 0.f) attraction_strength = v;
+    virtual Particle& set_attraction_strength(const float value) noexcept {
+        attraction_strength = value;
         return *this;
     }
 
-    Particle& set_absorption_probability(float v) noexcept {
-        absorption_probability = Utils::clamp(v, 0.0f, 1.0f);
+    virtual Particle& set_absorption_probability(const float value) noexcept {
+        absorption_probability = Utils::clamp(value, 0.0f, 1.0f);
         return *this;
     }
 
-    Particle& set_decay_probability(float v) noexcept {
-        decay_probability = Utils::clamp(v, 0.0f, 1.0f);
+    virtual Particle& set_decay_probability(const float value) noexcept {
+        decay_probability = Utils::clamp(value, 0.0f, 1.0f);
         return *this;
     }
 
-    Particle& set_unstable(bool v) noexcept {
-        unstable = v;
+    virtual Particle& set_unstable(const bool value) noexcept {
+        unstable = value;
         return *this;
     }
 
-    Particle& set_attraction_softening(bool v) noexcept {
-        attraction_softening = v;
+    virtual Particle& set_force_softening(const float value) noexcept {
+        force_softening = value;
         return *this;
     }
 
-    Particle& set_restitution(bool v) noexcept {
-        restitution = v;
+    virtual Particle& set_restitution(const float value) noexcept {
+        restitution = value;
         return *this;
     }
 
-    Particle& set_resistance(float v) noexcept {
-        resistance =  Utils::clamp(v, 0.0f, 1.0f);
+    virtual Particle& set_resistance(const float value) noexcept {
+        resistance =  Utils::clamp(value, 0.0f, 1.0f);
         return *this;
     }
 
-    Particle& set_maximum_velocity(float v) noexcept {
-        maximum_velocity = Utils::clamp(v, 0.0f, 1.0f);
+    virtual Particle& set_maximum_velocity(const float value) noexcept {
+        maximum_velocity = std::max(0.f, value);
         return *this;
     }
 
-    Particle& set_fusion_probability(float v) noexcept {
-        fusion_probability = Utils::clamp(v, 0.0f, 1.0f);
+    virtual Particle& set_fusion_probability(const float value) noexcept {
+        fusion_probability = Utils::clamp(value, 0.0f, 1.0f);
         return *this;
     }
 
@@ -140,62 +144,71 @@ public:
     // Derived quantities
     // ============================================================
 
-    float radius() const noexcept {
+    [[nodiscard]]
+    virtual float radius() const noexcept {
         return Utils::mass_to_radius(mass, sigma);
     }
 
-    float kinetic_energy() const noexcept {
+    [[nodiscard]]
+    virtual float kinetic_energy() const noexcept {
         return ENERGY_MULTIPLIER * Utils::kinetic_energy(mass, velocity);
     }
 
-    float mass_energy() const noexcept {
+    [[nodiscard]]
+    virtual float mass_energy() const noexcept {
         return ENERGY_MULTIPLIER * Utils::mass_energy(mass, ENERGY_POWER);
-    }
-
-    float stiffness() const noexcept {
-        return 1.f / mass_energy();
     }
 
     // ============================================================
     // Lifecycle
     // ============================================================
 
-    void age(float dt = 1.0f/60.0f) noexcept {
-        time_lived += dt;
+    virtual void age(const float delta_time) noexcept {
+        time_lived += delta_time;
     }
 
-    void receive_energy(float v) noexcept {
-        received_energy += v;
+    virtual void age() noexcept {
+        age(1.0f/60.0f);
     }
 
-    bool is_dead() const noexcept {
+    virtual void receive_energy(const float energy) noexcept {
+        received_energy += energy;
+    }
+
+    [[nodiscard]]
+    virtual bool is_dead() const noexcept {
         return time_lived >= time_to_live;
     }
 
-    bool is_outside(int width, int height) const noexcept {
-        return position.x <= 0.f || position.x >= width ||
-               position.y <= 0.f || position.y >= height;
+    [[nodiscard]]
+    virtual bool is_outside(const int width, const int height) const noexcept {
+        return position.x <= 0.f || position.x >= static_cast<float>(width) ||
+               position.y <= 0.f || position.y >= static_cast<float>(height);
     }
 
     // ============================================================
     // Motion / integration
     // ============================================================
 
-    void integrate(float dt = 1.0f/60.0f) noexcept {
+    virtual void integrate(const float delta_time) noexcept {
         apply_drag();
-        velocity = velocity.add(acceleration.scale(dt));
+        velocity = velocity.add(acceleration.scale(delta_time));
         clamp_velocity();
-        position = position.add(velocity.scale(dt));
+        position = position.add(velocity.scale(delta_time));
         reset_forces();
     }
 
-    void clamp_velocity() noexcept {
-        float m = velocity.magnitude();
-        if (m > maximum_velocity)
+    virtual void integrate() noexcept {
+        integrate(1.0f/60.0f);
+    }
+
+    virtual void clamp_velocity() noexcept {
+        float _mass = velocity.magnitude();
+        if (_mass > maximum_velocity)
             velocity = velocity.unit().scale(maximum_velocity);
     }
 
-    void reset_forces() noexcept {
+    virtual void reset_forces() noexcept {
         acceleration = V2D();
     }
 
@@ -203,20 +216,23 @@ public:
     // Interaction
     // ============================================================
 
-    bool is_collided(const Particle& other) const noexcept {
+    [[nodiscard]]
+    virtual bool is_collided(const Particle& other) const noexcept {
         float d = position.distance(other.position);
         return d <= radius() + other.radius();
     }
 
-    void apply_force(const V2D& force) noexcept {
-        acceleration = acceleration.add(force.scale(1.f / mass));
+    virtual void apply_force(const V2D& force) noexcept {
+        acceleration = acceleration.add(
+            force.scale(1.f / (static_cast<float>(mass) * force_softening))
+        );
     }
 
-    void apply_drag() noexcept {
-        velocity = velocity.scale(1.f - resistance);
+    virtual void apply_drag() noexcept {
+        velocity = velocity.scale(std::max(0.f, 1.f - resistance));
     }
 
-    void attract_to(const Particle& other) noexcept {
+    virtual void attract_to(const Particle& other) noexcept {
         const V2D direction = other.position.subtract(position);
         const float distance = direction.magnitude();
 
@@ -227,12 +243,12 @@ public:
             attraction_strength *
             static_cast<float>(mass) *
             static_cast<float>(other.mass) /
-            (distance * distance + attraction_softening);
+            (distance * distance);
 
         apply_force(direction.unit().scale(force_mag));
     }
 
-    void bounce(Particle& other) noexcept {
+    virtual void bounce(Particle& other) noexcept {
         if (!is_collided(other))
             return;
 
@@ -259,21 +275,34 @@ public:
         other.velocity = other.velocity.subtract(impulse.scale(inv_m2));
     }
 
-    bool should_absorb(const float dt = 1.0f/60.0f) const noexcept {
-        return Utils::time_scaled_bernoulli(dt, absorption_probability);
+    [[nodiscard]]
+    virtual bool should_absorb(const float delta_time) const noexcept {
+        return Utils::time_scaled_bernoulli(delta_time, absorption_probability);
     }
 
-    bool should_decay(const float dt = 1.0f/60.0f) const noexcept {
-        return Utils::time_scaled_bernoulli(dt, decay_probability);
+    [[nodiscard]]
+    virtual bool should_absorb() const noexcept {
+        return should_absorb(1.0f/60.0f);
     }
 
-    bool can_fuse(const Particle& other) const noexcept
+    [[nodiscard]]
+    virtual bool should_decay(const float delta_time) const noexcept {
+        return Utils::time_scaled_bernoulli(delta_time, decay_probability);
+    }
+
+    [[nodiscard]]
+    virtual bool should_decay() const noexcept {
+        return should_decay(1.0f/60.0f);
+    }
+
+    [[nodiscard]]
+    virtual bool can_fuse(const Particle& other) const noexcept
     {
         if (!is_collided(other))
             return false;
 
-        const float m1 = static_cast<float>(mass);
-        const float m2 = static_cast<float>(other.mass);
+        const auto m1 = static_cast<float>(mass);
+        const auto m2 = static_cast<float>(other.mass);
 
         if (m1 <= 0.f || m2 <= 0.f)
             return false;
@@ -281,7 +310,7 @@ public:
         const V2D rel_vel = velocity.subtract(other.velocity);
 
         V2D normal = position.subtract(other.position);
-        float dist = normal.magnitude();
+        const float dist = normal.magnitude();
 
         if (dist < 1e-6f)
             return false;
@@ -295,35 +324,45 @@ public:
 
         const float reduced_mass = (m1 * m2) / (m1 + m2);
 
-        const float kinetic_energy =  random().set_mass(reduced_mass).set_velocity(rel_vel).kinetic_energy();
+        const float kinetic_energy =  random_particle()
+                                        .set_mass(static_cast<int>(reduced_mass))
+                                        .set_velocity(rel_vel)
+                                        .kinetic_energy();
 
         const float available_energy = mass_energy() + other.mass_energy() + kinetic_energy;
 
-        const float fused_mass_energy = random().set_mass(mass + other.mass). mass_energy();
+        const float fused_mass_energy = random_particle().set_mass(mass + other.mass). mass_energy();
 
         return available_energy >= fused_mass_energy;
     }
 
-    bool should_fuse(const Particle& other, float dt = 1.0f / 60.0f) const noexcept
+    [[nodiscard]]
+    virtual bool should_fuse(const Particle& other, const float delta_time) const noexcept
     {
         if (!can_fuse(other))
             return false;
 
         return Utils::time_scaled_bernoulli(
-            dt,
+            delta_time,
             (fusion_probability + other.absorption_probability) * 0.5f
             );
     }
 
+    [[nodiscard]]
+    virtual bool should_fuse(const Particle& other) const noexcept
+    {
+        return should_fuse(other, 1.0f/60.0f);
+    }
 
-    Particle fuse_with(const Particle& other) const
+    [[nodiscard]]
+    virtual Particle fuse_with(const Particle& other) const
     {
         if (!can_fuse(other)) {
             throw std::logic_error("Particle::fuse_with called when fusion is not possible");
         }
 
-        const float m1 = static_cast<float>(mass);
-        const float m2 = static_cast<float>(other.mass);
+        const auto m1 = static_cast<float>(mass);
+        const auto m2 = static_cast<float>(other.mass);
         const float total_mass = m1 + m2;
 
         const V2D fused_position =
@@ -357,24 +396,21 @@ public:
 
     using FissionSplit = std::tuple<int,int,int,float>;
 
-    std::vector<FissionSplit> bohr_wheeler(std::optional<float> energy_input = std::nullopt) const
-    {
+    [[nodiscard]]
+    virtual std::vector<FissionSplit> bohr_wheeler(const float energy_input) const {
         if (mass < 3) {
             return {
                 FissionSplit{ mass, 0, 0, 1.0f }
             };
         }
 
-        float deltaA0 = 0.18f * std::pow(mass, 2.f / 3.f);
-        if (energy_input.has_value()) {
-            const float symmetry_factor =
-                std::max(0.6f, 1.f - energy_input.value() / 100.f);
-            deltaA0 *= symmetry_factor;
-        }
+        float deltaA0 = 0.18f * std::pow(static_cast<float>(mass), 2.f / 3.f);
 
-        float base_nu = 2.5f;
-        if (energy_input.has_value())
-            base_nu += 0.02f * energy_input.value();
+        const float symmetry_factor =
+                std::max(0.6f, 1.f - energy_input / 100.f);
+        deltaA0 *= symmetry_factor;
+
+        float base_nu = 2.5f + 0.02f * energy_input;
 
         const float max_delta = deltaA0 * 2.f;
         const float step = std::max(1.f, deltaA0 / 3.f);
@@ -382,14 +418,18 @@ public:
         std::vector<FissionSplit> results;
         std::vector<float> weights;
 
-        for (float deltaA = -max_delta; deltaA <= max_delta; deltaA += step) {
+        const int steps = static_cast<int>(std::floor((2 * max_delta) / step));
+        for (int i = 0; i <= steps; ++i) {
+            const float deltaA = -max_delta + static_cast<float>(i) * step;
+
             int nu = static_cast<int>(
                 std::round(base_nu + std::abs(deltaA) * 0.1f)
             );
 
             int A1 = static_cast<int>(
-                std::round((mass - nu) / 2.f + deltaA)
+                std::round((static_cast<float>(mass) - static_cast<float>(nu)) / 2.f + deltaA)
             );
+
             int A2 = (mass - nu) - A1;
 
             if (A1 <= 0 || A2 <= 0)
@@ -404,7 +444,7 @@ public:
         }
 
         float total_weight = 0.f;
-        for (float w : weights) total_weight += w;
+        for (const float w : weights) total_weight += w;
 
         std::vector<FissionSplit> normalized;
         for (size_t i = 0; i < results.size(); ++i) {
@@ -417,7 +457,8 @@ public:
         return normalized;
     }
 
-    FissionSplit bohr_wheeler_split(std::optional<float> energy_input = std::nullopt) const {
+    [[nodiscard]]
+    virtual FissionSplit bohr_wheeler_split(const float energy_input) const {
         auto splits = bohr_wheeler(energy_input);
 
         static std::random_device rd;
@@ -440,13 +481,11 @@ public:
     // Factory helpers
     // ============================================================
 
-    static Particle random()  noexcept{
-        return Particle(V2D::random());
+    static Particle random_particle()  noexcept{
+        return Particle(V2D::random_vector());
     }
 
-    static Particle from_values(float x, float y)  noexcept{
+    static Particle from_values(const float x, const float y)  noexcept{
         return Particle(V2D(x, y));
     }
 };
-
-#endif // CHERNOBYL_CORE_PARTICLE_H

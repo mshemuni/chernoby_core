@@ -1,19 +1,21 @@
 #pragma once
-#ifndef CHERNOBYL_CORE_ROD_H
-#define CHERNOBYL_CORE_ROD_H
+
+#include <algorithm>
 
 #include "v2d.h"
 #include "particle.h"
-#include <algorithm>
 
 class Rod {
 public:
     V2D start;
     V2D end;
 
-
-    static constexpr float LOWER_AMOUNT = 0.01f;
+    // Physical
+    static constexpr float LOWER_STEP = 0.01f;
     float thickness = 15;
+
+    // Nuclear Operations
+    float absorption_probability = 0.1f;
 
     // ------------------------------------------------------------
     // Construction
@@ -28,18 +30,18 @@ public:
     // Setters
     // ------------------------------------------------------------
 
-    Rod& set_start(const V2D& s) noexcept {
-        start = s;
+    Rod& set_start(const V2D& _start) noexcept {
+        start = _start;
         return *this;
     }
 
-    Rod& set_end(const V2D& e) noexcept {
-        end = e;
+    Rod& set_end(const V2D& _end) noexcept {
+        end = _end;
         return *this;
     }
 
-    Rod& set_thickness(float t) noexcept {
-        if (t>0) thickness=t;
+    Rod& set_thickness(const float _thickness) noexcept {
+        if (_thickness>0) thickness=_thickness;
         return *this;
     }
 
@@ -47,22 +49,33 @@ public:
     // Collision
     // ------------------------------------------------------------
 
-    bool is_collided(const Particle& p) const noexcept {
-        V2D d = end.subtract(start);
-        float len2 = d.dot(d);
+    bool is_collided(const Particle& _particle) const noexcept {
+        const V2D difference = end.subtract(start);
+        const float len2 = difference.dot(difference);
 
         if (len2 <= 0.f) {
-            return start.distance(p.position) <= p.radius();
+            return start.distance(_particle.position) <= _particle.radius();
         }
 
-        float t = (p.position.subtract(start)).dot(d) / len2;
+        float t = (_particle.position.subtract(start)).dot(difference) / len2;
         t = std::clamp(t, 0.f, 1.f);
 
-        V2D closest = start.add(d.scale(t));
+        const V2D closest = start.add(difference.scale(t));
 
-        return closest.distance(p.position) <= p.radius();
+        return closest.distance(_particle.position) <= _particle.radius();
     }
 
-};
+    // ============================================================
+    // Interaction
+    // ============================================================
 
-#endif // CHERNOBYL_CORE_ROD_H
+    [[nodiscard]]
+    bool should_absorb(const float delta_time) const noexcept {
+        return Utils::time_scaled_bernoulli(delta_time, absorption_probability);
+    }
+
+    [[nodiscard]]
+    bool should_absorb() const noexcept {
+        return should_absorb(1.0f/60.0f);
+    }
+};

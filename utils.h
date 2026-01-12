@@ -1,5 +1,4 @@
-#ifndef CHERNOBY_CORE_UTILS_H
-#define CHERNOBY_CORE_UTILS_H
+#pragma once
 
 #include <cmath>
 #include <random>
@@ -33,7 +32,7 @@ public:
     }
 
     static float kinetic_energy(const int mass, const V2D velocity) noexcept {
-        return mass * velocity.dot(velocity);
+        return static_cast<float>(mass) * velocity.dot(velocity);
     }
 
     static float mass_energy(const int mass, const float energy_power=0.7f) noexcept {
@@ -41,4 +40,3 @@ public:
     }
 };
 
-#endif // CHERNOBY_CORE_UTILS_H
